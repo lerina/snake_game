@@ -8,7 +8,7 @@ async function run_game(){
   const gameManager = new GameManager();
 
   gameManager.restart();
-
+  gameManager.run(); //tmp 
 }
 
 run_game();

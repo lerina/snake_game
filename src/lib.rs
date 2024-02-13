@@ -1,10 +1,11 @@
+use js_sys::Array;
 use wasm_bindgen::prelude::*;
 
-#[derive(Clone, Copy)]
 #[wasm_bindgen]
+#[derive(Clone, Copy)]
 pub struct Vector {
-    x: f64,
-    y: f64,
+    pub x: f64,
+    pub y: f64,
 }
 
 #[wasm_bindgen]
@@ -56,10 +57,17 @@ impl Game {
             food,
             snake,
         }
+    } //^-- new
+
+    pub fn get_snake(&self) -> Array {
+        self.snake.clone().into_iter().map(JsValue::from).collect()
     }
 }
+
+/*
 //-------------------------
 #[cfg(test)]
 mod tests {
     use super::*;
 }
+*/
