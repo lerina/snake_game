@@ -34,9 +34,18 @@ export class GameManager {
       0, //TODO: Storage.getBestScore()
     );
   }//^-- render
+
+    tick() {
+        const lastUpdate = Date.now();
+        if (this.lastUpdate) {
+            this.game.process(lastUpdate - this.lastUpdate); //, this.controller.movement);        
+        }
+        this.lastUpdate = lastUpdate;
+        this.render();
+    }//^-- tick
   
   run() {
-    this.render();
+    setInterval(this.tick.bind(this), 1000 / CONFIG.FPS); //this.render();
   }  
 }//^-- GameManager
 

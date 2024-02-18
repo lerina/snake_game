@@ -89,6 +89,36 @@ impl Game {
     pub fn get_snake(&self) -> Array {
         self.snake.clone().into_iter().map(JsValue::from).collect()
     }
+
+    fn process_movement(&mut self, timespan: f64) { //, movement: Option<Movement>) {
+        let distance = self.speed * timespan;
+        let mut tail: Vec<Vector> = Vec::new();
+        let mut snake_distance = distance;
+        while self.snake.len() > 1 {
+            let point = self.snake.remove(0);
+            let next = &self.snake[0];
+            let segment = Segment::new(&point, next);
+            let length = segment.length();
+            if length >= snake_distance {
+                let vector = segment.get_vector().normalize().scale_by(snake_distance);
+                tail.push(point.add(&vector));
+                break;
+            } else {
+                snake_distance -= length;
+            }
+        }//^-- while
+        tail.append(&mut self.snake);
+        self.snake = tail;
+        let old_head = self.snake.pop().unwrap();
+        let new_head = old_head.add(&self.direction.scale_by(distance));
+        self.snake.push(new_head);
+    }//^-- process_movement
+
+    pub fn process(&mut self, timespan: f64) { //, movement: Option<Movement>) {
+        self.process_movement(timespan); //, movement);
+        //self.process_food();
+    }
+
 }
 
 
