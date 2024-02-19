@@ -1,47 +1,65 @@
 import init, { Game, Vector } from "../pkg/snake_game.js";
 import CONFIG from "./config.js";
 import { View } from "./view.js";
-
+import { Controller } from "./controller.js";
 
 export class GameManager {
   constructor() {
     this.restart();
+
     this.view = new View(
       this.game.width,
       this.game.height,
       this.render.bind(this)
     );
+
+    this.controller = new Controller(
+      this.onStop.bind(this)
+    );
   }//^-- constructor
 
-  restart() {
-    this.game = new Game(
-      CONFIG.WIDTH,
-      CONFIG.HEIGHT,
-      CONFIG.SPEED,
-      CONFIG.SNAKE_LENGTH,
-      new Vector( CONFIG.SNAKE_DIRECTION_X,
-                  CONFIG.SNAKE_DIRECTION_Y
-                )
-    );
-    
-  }//^-- restart
+    restart() {
+        this.game = new Game(
+          CONFIG.WIDTH,
+          CONFIG.HEIGHT,
+          CONFIG.SPEED,
+          CONFIG.SNAKE_LENGTH,
+          new Vector( CONFIG.SNAKE_DIRECTION_X,
+                      CONFIG.SNAKE_DIRECTION_Y
+                    )
+        );
+    }//^-- restart
 
-  render() {
-    this.view.render(
-      this.game.food,
-      this.game.get_snake(),
-      this.game.score,
-      0, //TODO: Storage.getBestScore()
+    onStop() {
+        const now = Date.now()
+        if (this.stopTime) {
+          this.stopTime = undefined;
+          this.lastUpdate = this.time + now - this.lastUpdate;
+        } else {
+          this.stopTime = now;
+        }
+      }
+
+    render() {
+        this.view.render(
+        this.game.food,
+        this.game.get_snake(),
+        this.game.score,
+        0, //TODO: Storage.getBestScore()
     );
   }//^-- render
 
+
     tick() {
-        const lastUpdate = Date.now();
-        if (this.lastUpdate) {
-            this.game.process(lastUpdate - this.lastUpdate); //, this.controller.movement);        
-        }
-        this.lastUpdate = lastUpdate;
-        this.render();
+        if (!this.stopTime) {
+            const lastUpdate = Date.now();
+            if (this.lastUpdate) {
+                this.game.process(lastUpdate - this.lastUpdate, this.controller.movement);        
+            }
+
+            this.lastUpdate = lastUpdate;
+            this.render();
+        }//^-- !this.stopTime
     }//^-- tick
   
   run() {
