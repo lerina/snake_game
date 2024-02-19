@@ -2,6 +2,7 @@ import init, { Game, Vector } from "../pkg/snake_game.js";
 import CONFIG from "./config.js";
 import { View } from "./view.js";
 import { Controller } from "./controller.js";
+import Storage  from "./storage.js";
 
 export class GameManager {
   constructor() {
@@ -45,7 +46,7 @@ export class GameManager {
         this.game.food,
         this.game.get_snake(),
         this.game.score,
-        0, //TODO: Storage.getBestScore()
+        Storage.getBestScore()
     );
   }//^-- render
 
@@ -54,8 +55,17 @@ export class GameManager {
         if (!this.stopTime) {
             const lastUpdate = Date.now();
             if (this.lastUpdate) {
-                this.game.process(lastUpdate - this.lastUpdate, this.controller.movement);        
-            }
+                this.game.process(lastUpdate - this.lastUpdate, this.controller.movement);   
+
+                //if (this.game.is_over()) {
+                //  this.restart();
+                //  return;
+                //}
+
+                if (this.game.score > Storage.getBestScore()) {
+                  Storage.setBestScore(this.game.score)
+                }     
+            }//^-- this.lastUpdate
 
             this.lastUpdate = lastUpdate;
             this.render();
