@@ -29,6 +29,9 @@ export class GameManager {
                       CONFIG.SNAKE_DIRECTION_Y
                     )
         );
+        //
+        this.lastUpdate = undefined;
+        this.stopTime = undefined;
     }//^-- restart
 
     onStop() {
@@ -50,20 +53,19 @@ export class GameManager {
     );
   }//^-- render
 
-
     tick() {
         if (!this.stopTime) {
             const lastUpdate = Date.now();
             if (this.lastUpdate) {
                 this.game.process(lastUpdate - this.lastUpdate, this.controller.movement);   
 
-                //if (this.game.is_over()) {
-                //  this.restart();
-                //  return;
-                //}
+                if (this.game.is_over()) {
+                  this.restart();
+                  return;
+                }
 
                 if (this.game.score > Storage.getBestScore()) {
-                  Storage.setBestScore(this.game.score)
+                  Storage.setBestScore(this.game.score);
                 }     
             }//^-- this.lastUpdate
 
@@ -71,7 +73,7 @@ export class GameManager {
             this.render();
         }//^-- !this.stopTime
     }//^-- tick
-  
+
   run() {
     setInterval(this.tick.bind(this), 1000 / CONFIG.FPS); //this.render();
   }  

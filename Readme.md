@@ -1,12 +1,11 @@
+It runs, but
 
+Uncaught Error: recursive use of an object detected which would lead to unsafe aliasing in rust
 
 ## lib.rs
 
 ```rust
-...
-use rand::Rng;
-
-...    fn process_movement(&mut self, timespan: f64) { 
+    fn process_movement(&mut self, timespan: f64, movement: Option<Movement>) {
         let distance = self.speed * timespan;
         let mut tail: Vec<Vector> = Vec::new();
         let mut snake_distance = distance;
@@ -27,12 +26,106 @@ use rand::Rng;
         self.snake = tail;
         let old_head = self.snake.pop().unwrap();
         let new_head = old_head.add(&self.direction.scale_by(distance));
+        //
+        if movement.is_some() {
+            let new_direction = match movement.unwrap() {
+                Movement::TOP =>   Vector { x: 0_f64, y: -1_f64},
+                Movement::RIGHT => Vector { x: 1_f64, y: 0_f64 },
+                Movement::DOWN =>  Vector { x: 0_f64, y: 1_f64 },
+                Movement::LEFT =>  Vector { x: -1_f64,y: 0_f64},
+            }; //^-- new_direction
+            
+            if !self.direction.is_opposite(&new_direction)
+                && !self.direction.equal_to(&new_direction)
+            {
+                let Vector { x: old_x, y: old_y } = old_head;
+                let old_x_rounded = old_x.round();
+                let old_y_rounded = old_y.round();
+                let new_x_rounded = new_head.x.round();
+                let new_y_rounded = new_head.y.round();
+
+                let rounded_x_changed = !are_equal(old_x_rounded, new_x_rounded);
+                let rounded_y_changed = !are_equal(old_y_rounded, new_y_rounded);
+                if rounded_x_changed || rounded_y_changed {
+                    let (old, old_rounded, new_rounded) = if rounded_x_changed {
+                        (old_x, old_x_rounded, new_x_rounded)
+                    } else {
+                        (old_y, old_y_rounded, new_y_rounded)
+                    };
+
+                    let breakpoint_component = old_rounded
+                        + (if new_rounded > old_rounded {
+                            0.5_f64
+                        } else {
+                            -0.5_f64
+                        });
+
+                    let breakpoint = if rounded_x_changed {
+                        Vector::new(breakpoint_component, old_y)
+                    } else {
+                        Vector::new(old_x, breakpoint_component)
+                    };
+
+                    let vector =
+                        new_direction.scale_by(distance - (old - breakpoint_component).abs());
+                    let head = breakpoint.add(&vector);
+
+                    self.snake.push(breakpoint);
+                    self.snake.push(head);
+                    self.direction = new_direction;
+                    return;
+                }
+            }
+        }//^-- if movement.is_some()
+     
         self.snake.push(new_head);
     }//^-- process_movement
 
-    pub fn process(&mut self, timespan: f64) {
-        self.process_movement(timespan);
+
+   fn process_food(&mut self) {
+        let snake_len = self.snake.len();
+        let head_segment = Segment::new(&self.snake[snake_len - 2], &self.snake[snake_len - 1]);
+        // check head relative to food position
+        if head_segment.is_point_inside(&self.food) {
+            let tail_end = &self.snake[0];
+            let before_tail_end = &self.snake[1];
+            let tail_segment = Segment::new(before_tail_end, &tail_end);
+            let new_tail_end = tail_end.add(&tail_segment.get_vector().normalize());
+            self.snake[0] = new_tail_end;
+            self.food = get_food(self.width, self.height, &self.snake);
+            self.score += 1;
+        }
     }
+
+    pub fn process(&mut self, timespan: f64, movement: Option<Movement>) {
+        self.process_movement(timespan, movement);
+        self.process_food();
+    }
+
+    pub fn is_over(&self) -> bool {
+        let snake_len = self.snake.len();
+        let last = self.snake[snake_len - 1];
+        let Vector { x, y } = last;
+
+        // a) check out of bound
+        if x < 0_f64 || x > f64::from(self.width) || y < 0_f64 || y > f64::from(self.height) {
+            return true;
+        }
+        
+        // b) Check for intersection
+        
+        // b.1) still to small to intersect
+        if snake_len < 5 {
+            return false;
+        }
+
+        // b.2) check snake bites itself
+        let segments = get_segments_from_vectors(&self.snake[..snake_len - 3]);
+        return segments.iter().any(|segment| {
+            let projected = segment.get_projected_point(&last);
+            segment.is_point_inside(&projected) && Segment::new(&last, &projected).length() < 0.5
+        });
+    }//^-- fn is_over
 
 ```
 

@@ -2,6 +2,11 @@ use js_sys::Array;
 use wasm_bindgen::prelude::*;
 use rand::Rng;
 
+static EPSILON: f64 = 0.0000001;
+
+fn are_equal(one: f64, another: f64) -> bool {
+    (one - another).abs() < EPSILON
+}
 
 #[wasm_bindgen]
 #[derive(Clone, Copy)]
@@ -49,6 +54,47 @@ impl Vector {
     pub fn dot_product(&self, other: &Vector) -> f64 {
         self.x * other.x + self.y * other.y
     }
+}
+
+
+pub struct Segment<'a> {
+    pub start: &'a Vector,
+    pub end: &'a Vector,
+}
+
+impl<'a> Segment<'a> {
+    pub fn new(start: &'a Vector, end: &'a Vector) -> Segment<'a> {
+        Segment { start, end }
+    }
+
+    pub fn get_vector(&self) -> Vector {
+        self.end.subtract(&self.start)
+    }
+
+    pub fn length(&self) -> f64 {
+        self.get_vector().length()
+    }
+
+    pub fn is_point_inside(&self, point: &Vector) -> bool {
+        let first = Segment::new(self.start, point);
+        let second = Segment::new(point, self.end);
+        are_equal(self.length(), first.length() + second.length())
+    }
+
+    pub fn get_projected_point(&self, point: &Vector) -> Vector {
+        let vector = self.get_vector();
+        let diff = point.subtract(&self.start);
+        let u = diff.dot_product(&vector) / vector.dot_product(&vector);
+        let scaled = vector.scale_by(u);
+        self.start.add(&scaled)
+    }
+}
+
+fn get_segments_from_vectors(vectors: &[Vector]) -> Vec<Segment> {
+    let pairs = vectors[..vectors.len() - 1].iter().zip(&vectors[1..]);
+    pairs
+        .map(|(s, e)| Segment::new(s, e))
+        .collect::<Vec<Segment>>()
 }
 
 #[wasm_bindgen]
@@ -196,56 +242,37 @@ impl Game {
         self.process_food();
     }
 
+    pub fn is_over(&self) -> bool {
+        let snake_len = self.snake.len();
+        let last = self.snake[snake_len - 1];
+        let Vector { x, y } = last;
+
+        // a) check out of bound
+        if x < 0_f64 || x > f64::from(self.width) || y < 0_f64 || y > f64::from(self.height) {
+            return true;
+        }
+        
+        // b) Check for intersection
+        
+        // b.1) still to small to intersect
+        if snake_len < 5 {
+            return false;
+        }
+
+        // b.2) check snake bites itself
+        let segments = get_segments_from_vectors(&self.snake[..snake_len - 3]);
+        return segments.iter().any(|segment| {
+            let projected = segment.get_projected_point(&last);
+            segment.is_point_inside(&projected) && Segment::new(&last, &projected).length() < 0.5
+        });
+    }//^-- fn is_over
+
 }
 
 
 //--- FOOD ---
 
-static EPSILON: f64 = 0.0000001;
 
-fn are_equal(one: f64, another: f64) -> bool {
-    (one - another).abs() < EPSILON
-}
-
-pub struct Segment<'a> {
-    pub start: &'a Vector,
-    pub end: &'a Vector,
-}
-
-impl<'a> Segment<'a> {
-    pub fn new(start: &'a Vector, end: &'a Vector) -> Segment<'a> {
-        Segment { start, end }
-    }
-
-    pub fn get_vector(&self) -> Vector {
-        self.end.subtract(&self.start)
-    }
-
-    pub fn length(&self) -> f64 {
-        self.get_vector().length()
-    }
-
-    pub fn is_point_inside(&self, point: &Vector) -> bool {
-        let first = Segment::new(self.start, point);
-        let second = Segment::new(point, self.end);
-        are_equal(self.length(), first.length() + second.length())
-    }
-
-    pub fn get_projected_point(&self, point: &Vector) -> Vector {
-        let vector = self.get_vector();
-        let diff = point.subtract(&self.start);
-        let u = diff.dot_product(&vector) / vector.dot_product(&vector);
-        let scaled = vector.scale_by(u);
-        self.start.add(&scaled)
-    }
-}
-
-fn get_segments_from_vectors(vectors: &[Vector]) -> Vec<Segment> {
-    let pairs = vectors[..vectors.len() - 1].iter().zip(&vectors[1..]);
-    pairs
-        .map(|(s, e)| Segment::new(s, e))
-        .collect::<Vec<Segment>>()
-}
 
 fn get_food(width: i32, height: i32, snake: &[Vector]) -> Vector {
     let segments = get_segments_from_vectors(snake);
